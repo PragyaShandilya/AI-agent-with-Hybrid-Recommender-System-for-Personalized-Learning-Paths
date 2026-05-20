@@ -38,10 +38,12 @@ This project addresses these challenges by combining hybrid recommendation techn
 ---
 
 # System Architecture
+<img width="544" height="612" alt="image" src="https://github.com/user-attachments/assets/e134af66-08a4-4fd8-877e-085b6081e6c0" />
 
 The system consists of three major layers:
 
 ## 1. AI Agent Layer
+<img width="818" height="419" alt="image" src="https://github.com/user-attachments/assets/a80e00ff-8e5b-42d5-8f0a-a4f457cf4e24" />
 
 The AI agent processes natural language user queries and extracts:
 
