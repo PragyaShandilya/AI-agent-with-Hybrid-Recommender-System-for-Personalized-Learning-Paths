@@ -1,0 +1,552 @@
+{
+  "name": "AI Agent RS",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ai-agent",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -576,
+        -80
+      ],
+      "id": "d774cfd5-86ce-4288-849e-8b5b948b0dea",
+      "name": "Webhook",
+      "webhookId": "b155d855-7dde-4089-a1c6-bd6ddc51d9e2"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{$json.user_message}}",
+        "options": {
+          "systemMessage": "You are an intent extraction agent for a course recommendation system.\n\nYour task is to extract structured intent from the user's query.\n\nYou MUST identify exactly two fields:\n1. skills (domain or subject)\n2. difficulty_level\n\nDifficulty assignment rules (STRICT):\n\n1. If the user explicitly mentions a difficulty level (e.g., beginner, intermediate, advanced), use it directly.\n\n2. If NO difficulty is explicitly mentioned:\n   - Assign \"Beginner\" by default.\n   - Do NOT infer Intermediate or Advanced unless there is a CLEAR, EXPLICIT cue.\n\n3. Assign \"Intermediate\" ONLY IF the query clearly implies:\n   - Prior experience (e.g., \"I already know\", \"improve\", \"upgrade\", \"industry use\")\n   - Professional or fresher-level context\n   - Practical or applied usage beyond basics\n\n4. Assign \"Advanced\" ONLY IF the query clearly implies:\n   - Research, teaching, or expert-level work\n   - Advanced topics (e.g., deep learning theory, genetic algorithms)\n   - Senior professional or academic roles\n\nIMPORTANT:\n- Generic queries like \"Suggest me Python courses\", \"Python course\", or \"Learn Python\"\n  MUST ALWAYS be classified as \"Beginner\".\n- Never assume user experience.\n- When in doubt, choose \"Beginner\".\n\nSTRICT OUTPUT CONSTRAINTS (MANDATORY):\n- Respond with ONLY valid JSON\n- Output MUST contain ONLY these two keys:\n  - \"skills\"\n  - \"difficulty_level\"\n- Do NOT include explanations, notes, reasoning, or extra text\n- Do NOT include markdown, comments, or newlines outside JSON\n- Do NOT add any additional keys\n- Do NOT wrap the response in prose\n\n\nRequired output format (exactly): \n{ \"skills\": \"<domain or subject>\", \n\"difficulty_level\": \"<Beginner | Intermediate | Advanced>\" }\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        -128,
+        -80
+      ],
+      "id": "ef839e33-3c5b-40b5-b8b8-33cc364875e0",
+      "name": "AI Agent",
+      "alwaysOutputData": false,
+      "executeOnce": false
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "typeVersion": 1,
+      "position": [
+        -56,
+        144
+      ],
+      "id": "99ecc1c0-ed44-418f-bf50-ee7b9371b1c8",
+      "name": "Ollama Chat Model",
+      "credentials": {
+        "ollamaApi": {
+          "id": "qZLtha9Ro5bPOJ8B",
+          "name": "Ollama account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://127.0.0.1:8000/recommend",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "skills",
+              "value": "={{ JSON.parse($json.output).skills }}"
+            },
+            {
+              "name": "level",
+              "value": "={{ JSON.parse($json.output).difficulty_level }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        224,
+        -176
+      ],
+      "id": "3efbea0c-f6f5-4b29-8cfd-249b4f469e2b",
+      "name": "HTTP Request",
+      "alwaysOutputData": true,
+      "executeOnce": false,
+      "retryOnFail": false
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1696,
+        -176
+      ],
+      "id": "bb59fda6-df8b-4689-a9d2-59ed287a5556",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Courses returned by backend: {{ JSON.stringify($json, null, 2) }}\nUser requested skill: {{$json.skills}}\nUser level: {{$json.level}}",
+        "options": {
+          "systemMessage": "You are a validation agent for a course recommender system.\n\nInput:\n- Requested skill\n- User experience level\n- List of courses returned by the backend\n\nRelevance rule:\nA course is relevant if it belongs to the same domain as the requested skill,\neven if the wording differs (e.g., machine learning ↔ AI, python ↔ data science).\n\nDecision rule:\n- If 2 or more backend courses are relevant → respond with recommendations.\n- If fewer than 2 are relevant → respond with the fallback message.\n\nFallback message (use ONLY if fewer than 2 relevant courses exist):\n\"Sorry, at the moment we don’t have relevant courses available for this domain. Please try another skill or area.\"\n\nResponse rules:\n- If recommending, use ONLY backend courses.\n- Do NOT invent, rename, or add courses.\n- Do NOT suggest other domains or skills.\n- Mention the requested skill and user level.\n- List courses as a bulleted list (not JSON or dictionary format).\n- Do NOT explain decisions or calculations.\n- Do NOT mention internal logic, ACCEPT/REJECT, or apologies unless using the fallback message.\n- Output ONLY the final user-facing response.\n- Keep the response concise and friendly.\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        896,
+        -176
+      ],
+      "id": "c3303c4c-ab4e-40ca-91c1-3de11ae1cf83",
+      "name": "AI Agent1"
+    },
+    {
+      "parameters": {
+        "options": {
+          "temperature": 0.6,
+          "numPredict": null
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "typeVersion": 1,
+      "position": [
+        968,
+        48
+      ],
+      "id": "c809ac0c-5eda-4856-9927-abec774eec19",
+      "name": "Ollama Chat Model1",
+      "credentials": {
+        "ollamaApi": {
+          "id": "qZLtha9Ro5bPOJ8B",
+          "name": "Ollama account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "destinationFieldName": "Courses",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        448,
+        -176
+      ],
+      "id": "7476680c-f13a-4547-a7bf-1ac7781a21b9",
+      "name": "Aggregate"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "1a1f3865-ae87-4571-8600-f8bfe5c3f968",
+              "name": "skills",
+              "value": "={{ JSON.parse($node[\"AI Agent\"].json.output).skills }}",
+              "type": "string"
+            },
+            {
+              "id": "0ac29726-1107-4b77-b536-f348db68cc34",
+              "name": "level",
+              "value": "={{ JSON.parse($node[\"AI Agent\"].json.output).difficulty_level }}",
+              "type": "string"
+            },
+            {
+              "id": "ca723810-d274-4c90-a498-327ff85c4b6c",
+              "name": "courses",
+              "value": "={{ $json.Courses }}",
+              "type": "array"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        672,
+        -176
+      ],
+      "id": "9630f835-4a4b-4064-8ff0-027bf1e09837",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "1a6bcd7c-e477-468a-a1d2-b592564d7753",
+              "name": "start_time",
+              "value": "={{ Date.now()}}",
+              "type": "number"
+            },
+            {
+              "id": "4041a0ad-0849-40e0-86b2-cdcc48e91d71",
+              "name": "=user_message",
+              "value": "={{ $json.body.message }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -352,
+        -80
+      ],
+      "id": "c2f43982-a3ba-4098-a570-3d4604d758f4",
+      "name": "Edit Fields1"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "d6afd31b-8095-465a-bdec-b020494c7769",
+              "name": "end_time",
+              "value": "={{ Date.now() }}",
+              "type": "number"
+            },
+            {
+              "id": "f364d575-70c8-4558-b66d-0d055fd0dcb6",
+              "name": "latency_ms",
+              "value": "={{ Date.now() - $items(\"Edit Fields1\")[0].json.start_time }}",
+              "type": "number"
+            },
+            {
+              "id": "0578d472-31fa-4bfb-a08d-7f6765cd18c3",
+              "name": "=execution_id",
+              "value": "={{$execution.id}}",
+              "type": "string"
+            },
+            {
+              "id": "489a0a0e-a6e8-4696-a542-5650a19cf9f6",
+              "name": "timestamp",
+              "value": "={{ Date.now() }}",
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1248,
+        -176
+      ],
+      "id": "1507e629-38e4-4824-908a-0f61156f373a",
+      "name": "Edit Fields2"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1PY0p9ztOTDWdEN__jZvsi1KYChttbGoLO403Ke3z5DI",
+          "mode": "list",
+          "cachedResultName": "n8n_latency_metrics",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PY0p9ztOTDWdEN__jZvsi1KYChttbGoLO403Ke3z5DI/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PY0p9ztOTDWdEN__jZvsi1KYChttbGoLO403Ke3z5DI/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "execution_id": "={{ $json.execution_id }}",
+            "latency_ms": "={{ $json.latency_ms }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "execution_id",
+              "displayName": "execution_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "latency_ms",
+              "displayName": "latency_ms",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1472,
+        -176
+      ],
+      "id": "0ba71d86-eddb-4b83-ad6c-0cc677a809f6",
+      "name": "Append row in sheet",
+      "credentials": {
+        "googleApi": {
+          "id": "lztuuoLriBSNl14z",
+          "name": "Google Service Account account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1PY0p9ztOTDWdEN__jZvsi1KYChttbGoLO403Ke3z5DI",
+          "mode": "list",
+          "cachedResultName": "n8n_latency_metrics",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PY0p9ztOTDWdEN__jZvsi1KYChttbGoLO403Ke3z5DI/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1812067170,
+          "mode": "list",
+          "cachedResultName": "Sheet2",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1PY0p9ztOTDWdEN__jZvsi1KYChttbGoLO403Ke3z5DI/edit#gid=1812067170"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "query": "={{$items(\"Edit Fields1\")[0].json.user_message}}",
+            "inferred_level": "={{ JSON.parse($items(\"AI Agent\")[0].json.output).difficulty_level }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "query",
+              "displayName": "query",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "inferred_level",
+              "displayName": "inferred_level",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "expected_level",
+              "displayName": "expected_level",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        224,
+        16
+      ],
+      "id": "0180d4e3-08cb-4085-99f8-8211f6ce6e1d",
+      "name": "Append row in sheet1",
+      "credentials": {
+        "googleApi": {
+          "id": "lztuuoLriBSNl14z",
+          "name": "Google Service Account account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Append row in sheet1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ollama Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Aggregate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent1": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ollama Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields1": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields2": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append row in sheet": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append row in sheet1": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "versionId": "13bdaf75-c66a-4022-b2e9-6396ab87757f",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "e9c9bc009aede8aee5104bf86d23583b35b438496c528e17cf30b91b6e74888b"
+  },
+  "id": "z9HBPIn5JmTdRwSvB6VqI",
+  "tags": []
+}
