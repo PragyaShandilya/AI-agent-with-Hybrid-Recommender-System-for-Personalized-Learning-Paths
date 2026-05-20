@@ -1,0 +1,2 @@
+# AI-agent-with-Hybrid-Recommender-System-for-Personalized-Learning-Paths
+AI-powered course recommendation system integrated with an N8N-based AI Agent that generates personalized learning paths using hybrid recommendation techniques (content-based + collaborative filtering). Built with Python, FastAPI, TF-IDF, cosine similarity, and machine learning workflows for real-time course recommendations.
